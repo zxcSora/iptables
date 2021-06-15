@@ -1,0 +1,47 @@
+- name: "purge"
+  block:
+    - name: "rollback rules"
+      raw: |
+          iptables-restore < /etc/iptables/rules.v4.rollback
+      when: iptables_rollback_rules == "yes"
+
+    - name: "purge"
+      raw: |
+        systemctl stop {{iptables_service}}
+        export DEBIAN_FRONTEND=noninteractive
+        echo "{{iptables_pkgs|join('\n')}}" | \
+          cut -d '=' -f 1 | \
+          xargs -r -n 1 apt-get --yes --purge autoremove
+        systemctl daemon-reload
+        systemctl reset-failed
+        rm -rf /etc/iptables/*
+  
+    - meta: end_play
+  when: iptables_purge == "yes"
+
+- name: "update apt cache"
+  apt:
+    update_cache: yes
+  ignore_errors: true
+  changed_when: false
+  when: iptables_skip_apt_update != "yes"
+
+- name: "install packages"
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items: "{{iptables_pkgs}}"
+
+- name: "save origin rules"
+  raw: |
+    ROLLBACK_RULES="/etc/iptables/rules.v4.rollback"
+    [ -r "$ROLLBACK_RULES" ] && exit 0
+    iptables-save > "$ROLLBACK_RULES"
+  changed_when: false
+
+- name: "start service"
+  systemd:
+    name: "{{iptables_service}}"
+    state: "started"
+    enabled: "yes"
+    masked: "no"

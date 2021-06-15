@@ -1,0 +1,7 @@
+iptables_skip_apt_update: "no"
+iptables_pkgs:
+  - "iptables-persistent=1.*"
+
+# Warning it can broke docker rules if docker was installed after this role
+iptables_rollback_rules: "yes"
+iptables_purge: "no"

@@ -1,0 +1,3 @@
+#Change ttl 
+#Example: -A POSTROUTING -o eth0 -j TTL --ttl-set 64
+-A {{item.chain|default('POSTROUTING')}} -o {{item.ext_if|default(ansible_default_ipv4.interface}} -m comment --comment "{{item.name}} ###ANSIBLE###" -j {{item.target}} {{item.opt}} {{item.ttl}}

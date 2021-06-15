@@ -1,0 +1,150 @@
+- name: "force clean up iptables"
+  block:
+    - name: "flush iptables"
+      raw: |
+        iptables-restore < "/etc/iptables/rules.v4.rollback"
+    - meta: end_play
+  when: iptables_rules_rollback == "yes"
+
+- name: "prepare tmp directory"
+  file:
+    path: "{{iptables_rules_tmp_path}}"
+    state: directory
+    mode: 0750
+    owner: root
+    group: root
+
+- name: "make rules backup"
+  raw: |
+    cd "{{iptables_rules_tmp_path|quote}}" || exit 1
+    iptables-save > "backup"
+  changed_when: false
+  when: iptables_rules_safe_apply == "yes"
+
+- name: "prepare dummy want file"
+  raw: |
+    cd "{{iptables_rules_tmp_path|quote}}" || exit 1
+
+    for table in raw mangle nat filter security
+    do
+      [ -r "want_$table" ] || echo "*$table\nCOMMIT"  > "want_$table"
+    done
+  changed_when: false
+
+- name: "setup filter rules"
+  blockinfile:
+    path: "{{iptables_rules_tmp_path}}/want_filter"
+    marker_begin: "FILTER_{{item.name}}_BEGIN"
+    marker_end: "FILTER_{{item.name}}_END"
+    insertbefore: "COMMIT"
+    state: "{{item.state}}"
+    block: "{{lookup('template', '{{item.template}}')}}"
+  register: iptables_rules_filter_out
+  with_items: "{{iptables_rules_filter}}"
+
+- name: "setup nat rules"
+  blockinfile:
+    path: "{{iptables_rules_tmp_path}}/want_nat"
+    marker_begin: "NAT_{{item.name}}_BEGIN"
+    marker_end: "NAT_{{item.name}}_END"
+    insertbefore: "COMMIT"
+    state: "{{item.state}}"
+    block: "{{lookup('template', '{{item.template}}')}}"
+  register: iptables_rules_nat_out
+  with_items: "{{iptables_rules_nat}}"
+
+- name: "setup mangle rules"
+  blockinfile:
+    path: "{{iptables_rules_tmp_path}}/want_mangle"
+    marker_begin: "MANGLE_{{item.name}}_BEGIN"
+    marker_end: "MANGLE_{{item.name}}_END"
+    insertbefore: "COMMIT"
+    state: "{{item.state}}"
+    block: "{{lookup('template', '{{item.template}}')}}"
+  register: iptables_rules_mangle_out
+  with_items: "{{iptables_rules_mangle}}"
+
+- name: "setup raw rules"
+  blockinfile:
+    path: "{{iptables_rules_tmp_path}}/want_raw"
+    marker_begin: "RAW_{{item.name}}_BEGIN"
+    marker_end: "RAW_{{item.name}}_END"
+    insertbefore: "COMMIT"
+    state: "{{item.state}}"
+    block: "{{lookup('template', '{{item.template}}')}}"
+  register: iptables_rules_raw_out
+  with_items: "{{iptables_rules_raw}}"
+
+- name: "setup security rules"
+  blockinfile:
+    path: "{{iptables_rules_tmp_path}}/want_security"
+    marker_begin: "SECURITY_{{item.name}}_BEGIN"
+    marker_end: "SECURITY_{{item.name}}_END"
+    insertbefore: "COMMIT"
+    state: "{{item.state}}"
+    block: "{{lookup('template', '{{item.template}}')}}"
+  register: iptables_rules_security_out
+  with_items: "{{iptables_rules_security}}"
+
+- name: "configure rules with unmanage"
+  raw: |
+    cd "{{iptables_rules_tmp_path|quote}}" || exit 1
+    for table in raw mangle nat filter security
+    do
+      iptables-save -t "$table" > "cur_$table"
+      if [ ! -s "cur_$table" ]
+      then
+        cat "want_$table" > "unmanage_$table"
+        continue
+      fi
+
+      grep -E "^\*" "cur_$table" | fgrep -v "{{iptables_rules_ansible_magic}}" > "unmanage_$table"
+      grep -E "^:" "cur_$table" | fgrep -v "{{iptables_rules_ansible_magic}}" >> "unmanage_$table"
+      # grep -E "^:" "want_$table" | fgrep -v "{{iptables_rules_ansible_magic}}" >> "unmanage_$table"
+      grep -E "^:" "want_$table"  >> "unmanage_$table"
+      grep -E "^-" "want_$table" >> "unmanage_$table"
+      grep -E "^-" "cur_$table" | fgrep -v "{{iptables_rules_ansible_magic}}" >> "unmanage_$table"
+      echo "COMMIT" >> "unmanage_$table"
+    done
+
+    cat unmanage_raw unmanage_mangle unmanage_nat unmanage_filter unmanage_security > want
+    cat want | iptables-restore -t || exit 1
+    cp want state
+  changed_when: false
+  when: iptables_rules_save_unmanage == "yes"
+
+- name: "configure rules"
+  raw: |
+    cd "{{iptables_rules_tmp_path}}" || exit 1
+    cat want_raw want_mangle want_nat want_filter want_security > want
+    cat want | iptables-restore -t || exit 1
+    cp want state
+  changed_when: false
+  when: iptables_rules_save_unmanage != "yes"
+
+- name: "enable safe rollback"
+  raw: |
+    cd "{{iptables_rules_tmp_path}}" || exit 1
+    rm -f ok
+    nohup sh -c "sleep {{iptables_rules_rollback_timeout}};test -r ok && iptables-restore < backup; rm -f state" >/dev/null 2>&1 &
+  changed_when: false
+  when: iptables_rules_safe_apply == "yes"
+
+- name: "apply rules"
+  raw: |
+    cd "{{iptables_rules_tmp_path}}" || exit 1
+    iptables-restore < want
+  changed_when: false
+
+- name: "disable safe rollback"
+  raw: |
+    cd "{{iptables_rules_tmp_path}}" || exit 1
+    touch ok    
+  changed_when: false
+  when: iptables_rules_safe_apply == "yes"
+
+- name: "save state"
+  raw: |
+    cd "{{iptables_rules_tmp_path}}" || exit 1
+    cat state > /etc/iptables/rules.v4
+  changed_when: false

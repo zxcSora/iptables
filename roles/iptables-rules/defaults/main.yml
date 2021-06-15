@@ -1,0 +1,55 @@
+iptables_rules_file: "/etc/iptables/rules.v4"
+iptables_rules_save_unmanage: "yes"
+iptables_rules_rollback_timeout: "30"
+
+iptables_rules_raw:
+  - name: "default"
+    state: "present"
+    template: "templates/default_polices_raw.j2"
+
+iptables_rules_filter:
+  - name: "default"
+    state: "present"
+    template: "templates/default_polices_filter.j2"
+
+  - name: "allow ssh"
+    state: "present"
+    template: "templates/filter_port.j2" 
+    #src: '10.10.10.0/24'
+    #proto: 'tcp'
+    #dport: '22'
+    #target: 'ACCEPT'
+
+iptables_rules_nat:
+  - name: "default"
+    state: "present"
+    template: "templates/default_polices_nat.j2"
+
+  # - name: 'forward traffic to ssh server1'
+  #   state: 'present'
+  #   template: "templates/nat_port_forward.j2"
+  #   #ext_ip: '185.137.232.133'
+  #   dport: '1234'
+  #   target: 'DNAT'
+  #   lan_ip: '10.10.10.5'
+  #   #proto: 'tcp'
+  #   #ext_if: eno1
+
+  # - name: "enable masquerading for lan 10.10.10.0/24"
+  #   state: 'present'
+  #   template: 'templates/nat_masquerade.j2'
+  #   lan_net: '10.10.10.0/24'
+  #   #ext_if: 'eno1'
+
+iptables_rules_mangle:
+  - name: "default"
+    state: "present"
+    template: "templates/default_polices_mangle.j2"
+
+iptables_rules_security:
+  - name: "default"
+    state: "present"
+    template: "templates/default_polices_security.j2"
+
+iptables_rules_safe_apply: "yes"  
+iptables_rules_rollback: "no"

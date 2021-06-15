@@ -1,0 +1,3 @@
+#Example: -A FORWARD -i eth0 -o eth1 -d 10.10.10.2 -p tcp -m tcp --dport 21 -j ACCEPT
+#Forward traffic from internet to lan 
+-A FORWARD -i {{item.ext_if|default(ansible_default_ipv4.interface)}} -o {{item.internal_if}} -d {{item.lan_ip}} -p {{item.proto|default('tcp')}} -m {{item.proto|default('tcp')}} --dport {{item.dport}} -m comment --comment "{{item.name}} ###ANSIBLE###" -j {{item.target}}

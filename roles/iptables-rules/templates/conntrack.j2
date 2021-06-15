@@ -1,0 +1,3 @@
+# Example: -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+#ctstate: ESTABLISHED,RELATED,NEW,INVALID
+-A {{item.chain|default('INPUT')}} -m conntrack --ctstate {{item.ctstate|default('ESTABLISHED,RELATED')}} -m comment --comment "{{item.name}} ###ANSIBLE###" -j {{item.target|default('ACCEPT')}} 

@@ -1,0 +1,4 @@
+:PREROUTING {{item.prerouting|default('ACCEPT')}}  [0:0] # {{item.name}} ###ANSIBLE###
+:INPUT {{item.input|default('ACCEPT')}}  [0:0] # {{item.name}} ###ANSIBLE###
+:OUTPUT {{item.output|default('ACCEPT')}}  [0:0] # {{item.name}} ###ANSIBLE###
+:POSTROUTING {{item.postrouting|default('ACCEPT')}}  [0:0] # {{item.name}} ###ANSIBLE###

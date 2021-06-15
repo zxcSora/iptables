@@ -1,0 +1,2 @@
+#In case of using 'iptables -P INPUT DROP' don't forget to allow loopback traffic and docker0 traffic
+-A {{item.chain|default("INPUT")}} -i {{item.if|default(ansible_lo.device)}} -j {{item.target|default("ACCEPT")}} -m comment --comment "{{item.name}} ###ANSIBLE###"

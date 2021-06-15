@@ -1,0 +1,5 @@
+#Default behavior: allow all incoming ssh traffic
+#Example: -A INPUT -s 10.10.10.0/24 -p tcp -m tcp --dport 5432 -m comment --comment "allow postgres from admin net ###ANSIBLE###" -j ACCEPT
+{%for ip in item.src|default(['0.0.0.0/0'])%}
+-A INPUT -s {{ip}} -p {{item.proto|default('tcp')}} -m {{item.proto|default('tcp')}} --dport {{item.dport|default('22')}} -m comment --comment "{{item.name}} ###ANSIBLE###" -j {{item.target|default('ACCEPT')}}
+{%endfor%}

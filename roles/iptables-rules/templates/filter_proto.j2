@@ -1,0 +1,5 @@
+#Rule can set some protocol-specific parametrs
+#Example allow ICMP ping incoming client request: 
+#-A INPUT -p icmp --icmp-type 8 -j ACCEPT 
+#-A OUTPUT -p icmp --icmp-type 0 -j ACCEPT
+-A {{item.chain|default('INPUT')}} -p {{item.proto|default('icmp')}}  {{item.flags|default('')}}  -m comment --comment "{{item.name}} ###ANSIBLE###" -j {{item.target|default('ACCEPT')}}

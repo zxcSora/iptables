@@ -1,0 +1,95 @@
+- name: "setup firewall"
+  become: "yes"
+  gather_facts: "yes"
+  hosts:
+    - "setup"
+  roles:
+    - role: "roles/iptables"
+      iptables_purge: "no"
+    - role: "roles/iptables-rules"
+      iptables_rules_save_unmanage: "no"
+      iptables_rules_filter:
+        - name: "default"
+          state: "present"
+          template: "templates/default_polices_filter.j2"
+          input: "DROP"
+          forward: "DROP"
+          output: "ACCEPT"
+
+        - name: "allow loopback"
+          state: "present"
+          template: "templates/filter_if.j2"
+
+        - name: "allow icmp"
+          state: "present"
+          template: "templates/filter_proto.j2"
+
+        - name: "allow http"
+          state: "present"
+          template: "templates/filter_port.j2"
+          dport: '80'
+
+        - name: "allow https"
+          state: "present"
+          template: "templates/filter_port.j2"
+          dport: '443'
+
+        - name: "allow zabbix-agent"
+          state: "present"
+          template: "templates/filter_port.j2"
+          dport: '10050'
+
+        - name: "allow zabbix-trapper"
+          state: "present"
+          template: "templates/filter_port.j2"
+          dport: '10051'
+
+        - name: "allow 22 for new teamcity agents internal ips"
+          state: "present"
+          template: "templates/filter_port.j2"
+          src:
+              - '0.0.0.0'
+
+        - name: "drop invalid input traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'INPUT'
+          ctstate: 'INVALID'
+          target: 'DROP'
+
+        - name: "accept established, related input traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'INPUT'
+          ctstate: 'ESTABLISHED,RELATED'
+          target: 'ACCEPT'
+
+        - name: "drop invalid forward traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'FORWARD'
+          ctstate: 'INVALID'
+          target: 'DROP'
+
+        - name: "accept established, related forward traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'FORWARD'
+          ctstate: 'ESTABLISHED,RELATED'
+          target: 'ACCEPT'
+
+        - name: "drop invalid output traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'OUTPUT'
+          ctstate: 'INVALID'
+          target: 'DROP'
+
+        - name: "accept established, related output traffic"
+          state: "present"
+          template: "templates/conntrack.j2"
+          chain: 'OUTPUT'
+          ctstate: 'ESTABLISHED,RELATED'
+          target: 'ACCEPT'
+  tags:
+    - "iptables"
